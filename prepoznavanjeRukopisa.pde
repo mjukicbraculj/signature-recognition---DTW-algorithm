@@ -6,13 +6,17 @@ import java.util.Collections;
 import controlP5.*;
 ControlP5 controlP5;      //used for drawing user controls: dropdown, button etc.
 DropdownList dropDown1, dropDown2;
-Button compareBtn, backBtn, makeTableBtn;
+Button compareBtn, backBtn, makeTableBtn, findBtn;
 int personNum;        //numbers of person who have signature in base
 int filePerPersonNum;      //numbers of signature per person
 Drawer drawer;                //calss used for setting fonts 
 DTW algorithm;
 String item1, item2, errorMessage, resultMessage;
-PrintWriter output;
+PrintWriter output, koordinate, outputAvg;
+
+int stariX, stariY;
+int noviX, noviY;
+
 
 void setup(){
   controlP5 = new ControlP5(this);
@@ -22,12 +26,17 @@ void setup(){
   filePerPersonNum = 5;
   addControls();
   showBeginningControls(true);
-  frameRate(100);
   algorithm = new DTW();
   errorMessage = item1 = item2 = "";
   resultMessage = "";
 
-  
+  stariX = -1;
+  stariY = -1;
+  noviX = -1;
+  noviY = -1;
+  stroke(255,0,0);
+  frameRate(30);
+  //koordinate = createWriter("./izlaz/koordinate.txt"); 
    
 }
 
@@ -35,6 +44,21 @@ void draw(){
   background(color(200, 200, 200));
   drawer.makeText(errorMessage, 20, 0, width/2, height*6/7);
   drawer.makeText(resultMessage, 20, 0, width/2, height/2);
+  
+  if (mousePressed ) {
+    noviX = mouseX; noviY = mouseY;
+    if (stariX != -1) {
+        stroke(255,0,0);
+        line(stariX,stariY,noviX,noviY);
+        println(stariX,stariY,noviX,noviY,millis());
+        //koordinate.println(stariX+"\t"+stariY+"\t"+noviX+"\t"+noviY+"\t"+millis());
+    }
+    stariX = noviX; stariY = noviY;
+    // background(255,255,255);   
+  } else {
+    // background(250,250,250);
+    stariX = -1; stariY = -1;
+  }
 }
 
 //method compares file osobai, potpisj with all other files in base
@@ -90,6 +114,12 @@ void addControls(){
                .setPosition(width/2 - 100, 4*height/5)
                .setSize(200, 100)
                .setVisible(false);
+  
+    findBtn = controlP5.addButton("Find")
+       .setPosition(width - 200, 300)
+       .setSize(200, 50)
+       .setVisible(false);
+     
   compareBtn.getCaptionLabel().setFont(drawer.getControlFont(20));
   makeTableBtn.getCaptionLabel().setFont(drawer.getControlFont(20));
   addItemsToDropDown(dropDown1);
@@ -103,6 +133,7 @@ void showBeginningControls(boolean yesOrNo){
   dropDown2.setVisible(yesOrNo);
   compareBtn.setVisible(yesOrNo);
   makeTableBtn.setVisible(yesOrNo);
+  findBtn.setVisible(yesOrNo);
   if(!yesOrNo){
     compareBtn.hide();        //controlP5 is not active anymore when hidden.
     makeTableBtn.hide();
@@ -133,6 +164,8 @@ void controlEvent(ControlEvent theEvent){
     backBtnClick();
   else if(theEvent.getName().equals("Make table"))
     makeTableClick();
+  else if(theEvent.getName().equals("Find"))
+    findBtnClick();
   else if(theEvent.getName().equals("Compare"))
     compareBtnClick();
   else if(theEvent.getController().getName().equals("firstList"))
@@ -175,4 +208,61 @@ void backBtnClick(){
   backBtn.hide();
   resultMessage = "";
   algorithm = new DTW();
+}
+
+void findBtnClick(){
+  
+  double sum = 0, avg;
+  double minAvg = 5000000;
+  double min = 5000000;
+  int person = -1, personAvg = -1;
+  
+  
+  showBeginningControls(true);
+  findBtn.hide();
+  println("findddd");
+  showBeginningControls(false);
+  backBtn.setVisible(true);
+  errorMessage = "";
+  //koordinate.flush(); // Ispiše preostale podatke u datoteku
+  //koordinate.close(); // Zatvara datoteku
+  //saveFrame("potpis.png");
+  
+  output = createWriter("test.xlsx"); 
+  outputAvg = createWriter("testAvg.xlsx"); 
+  String line = "";
+  String line2 = "";
+  
+  for(int a = 0; a < personNum; ++a) {
+    sum = 0;
+    for(int b = 0; b < filePerPersonNum; ++b){
+      String item2 = "osoba" + a + ", " + "potpis" + b;
+      algorithm.readData("./koordinate.txt", "files/" + item2 + ".txt");
+      algorithm.normaliseData();
+      double distance = algorithm.findDistance();
+      sum += distance;
+      if(distance < min) {
+        min = distance;
+        person = a;
+      }  
+      line += (int)distance + "\t";
+      algorithm = new DTW();
+    }
+    avg = sum/filePerPersonNum;
+    if(avg < minAvg) {
+        minAvg = avg;
+        personAvg = a;
+      }
+    line2 += (int)avg + "\t";
+  }
+    System.gc();          //we call garbage collector to free some memory
+    output.println(line);
+    output.flush(); // Ispiše preostale podatke u datoteku
+    output.close(); // Zatvara datoteku
+    outputAvg.println(line2);
+    outputAvg.flush(); // Ispiše preostale podatke u datoteku
+    outputAvg.close(); // Zatvara datoteku
+    
+  
+    resultMessage = "Probably person" + person + " Distance: " + min + "\n personAvg " + personAvg + " minAvg " + minAvg;
 }
